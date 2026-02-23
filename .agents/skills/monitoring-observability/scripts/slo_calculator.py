@@ -6,13 +6,14 @@ Supports availability SLOs and latency SLOs.
 
 import argparse
 import sys
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 try:
     from tabulate import tabulate
 except ImportError:
-    print("⚠️  Warning: 'tabulate' library not found. Install with: pip install tabulate")
+    print(
+        "⚠️  Warning: 'tabulate' library not found. Install with: pip install tabulate"
+    )
     tabulate = None
 
 
@@ -46,7 +47,9 @@ class SLOCalculator:
         allowed_error_rate = (100 - self.slo_target) / 100
         return total_minutes * allowed_error_rate
 
-    def calculate_availability_slo(self, total_requests: int, failed_requests: int) -> Dict[str, Any]:
+    def calculate_availability_slo(
+        self, total_requests: int, failed_requests: int
+    ) -> Dict[str, Any]:
         """
         Calculate availability SLO compliance.
 
@@ -58,17 +61,18 @@ class SLOCalculator:
             Dict with SLO compliance metrics
         """
         if total_requests == 0:
-            return {
-                "error": "No requests in the period",
-                "slo_met": False
-            }
+            return {"error": "No requests in the period", "slo_met": False}
 
         success_rate = ((total_requests - failed_requests) / total_requests) * 100
         error_rate = (failed_requests / total_requests) * 100
 
         # Calculate error budget consumption
         allowed_failures = total_requests * ((100 - self.slo_target) / 100)
-        error_budget_consumed = (failed_requests / allowed_failures) * 100 if allowed_failures > 0 else float('inf')
+        error_budget_consumed = (
+            (failed_requests / allowed_failures) * 100
+            if allowed_failures > 0
+            else float("inf")
+        )
         error_budget_remaining = max(0, 100 - error_budget_consumed)
 
         # Determine if SLO is met
@@ -86,10 +90,12 @@ class SLOCalculator:
             "error_budget_total": allowed_failures,
             "error_budget_consumed": error_budget_consumed,
             "error_budget_remaining": error_budget_remaining,
-            "margin": success_rate - self.slo_target
+            "margin": success_rate - self.slo_target,
         }
 
-    def calculate_latency_slo(self, total_requests: int, requests_exceeding_threshold: int) -> Dict[str, Any]:
+    def calculate_latency_slo(
+        self, total_requests: int, requests_exceeding_threshold: int
+    ) -> Dict[str, Any]:
         """
         Calculate latency SLO compliance.
 
@@ -101,16 +107,19 @@ class SLOCalculator:
             Dict with SLO compliance metrics
         """
         if total_requests == 0:
-            return {
-                "error": "No requests in the period",
-                "slo_met": False
-            }
+            return {"error": "No requests in the period", "slo_met": False}
 
-        within_threshold_rate = ((total_requests - requests_exceeding_threshold) / total_requests) * 100
+        within_threshold_rate = (
+            (total_requests - requests_exceeding_threshold) / total_requests
+        ) * 100
 
         # Calculate error budget consumption
         allowed_slow_requests = total_requests * ((100 - self.slo_target) / 100)
-        error_budget_consumed = (requests_exceeding_threshold / allowed_slow_requests) * 100 if allowed_slow_requests > 0 else float('inf')
+        error_budget_consumed = (
+            (requests_exceeding_threshold / allowed_slow_requests) * 100
+            if allowed_slow_requests > 0
+            else float("inf")
+        )
         error_budget_remaining = max(0, 100 - error_budget_consumed)
 
         slo_met = within_threshold_rate >= self.slo_target
@@ -126,10 +135,12 @@ class SLOCalculator:
             "error_budget_total": allowed_slow_requests,
             "error_budget_consumed": error_budget_consumed,
             "error_budget_remaining": error_budget_remaining,
-            "margin": within_threshold_rate - self.slo_target
+            "margin": within_threshold_rate - self.slo_target,
         }
 
-    def calculate_burn_rate(self, errors_in_window: int, requests_in_window: int, window_hours: float) -> Dict[str, Any]:
+    def calculate_burn_rate(
+        self, errors_in_window: int, requests_in_window: int, window_hours: float
+    ) -> Dict[str, Any]:
         """
         Calculate error budget burn rate.
 
@@ -151,14 +162,18 @@ class SLOCalculator:
         allowed_error_rate = 100 - self.slo_target
 
         # Burn rate = actual error rate / allowed error rate
-        burn_rate = actual_error_rate / allowed_error_rate if allowed_error_rate > 0 else float('inf')
+        burn_rate = (
+            actual_error_rate / allowed_error_rate
+            if allowed_error_rate > 0
+            else float("inf")
+        )
 
         # Calculate time to exhaustion
         if burn_rate > 0:
             error_budget_hours = self.error_budget_minutes / 60
             hours_to_exhaustion = error_budget_hours / burn_rate
         else:
-            hours_to_exhaustion = float('inf')
+            hours_to_exhaustion = float("inf")
 
         # Determine severity
         if burn_rate >= 14.4:  # 1 hour window, burns budget in 2 days
@@ -178,7 +193,7 @@ class SLOCalculator:
             "allowed_error_rate": allowed_error_rate,
             "burn_rate": burn_rate,
             "hours_to_exhaustion": hours_to_exhaustion,
-            "severity": severity
+            "severity": severity,
         }
 
     @staticmethod
@@ -189,7 +204,7 @@ class SLOCalculator:
             return
 
         print("\n📊 SLO TARGETS AND ALLOWED DOWNTIME")
-        print("="*60)
+        print("=" * 60)
 
         headers = ["SLO", "Year", "Month", "Week", "Day"]
         rows = []
@@ -200,7 +215,7 @@ class SLOCalculator:
                 f"{downtimes['year']:.2f} days",
                 f"{downtimes['month']:.2f} days",
                 f"{downtimes['week']:.2f} days",
-                f"{downtimes['day']:.2f} days"
+                f"{downtimes['day']:.2f} days",
             ]
             rows.append(row)
 
@@ -209,40 +224,46 @@ class SLOCalculator:
 
 def print_availability_results(results: Dict[str, Any]):
     """Print availability SLO results."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("📊 AVAILABILITY SLO COMPLIANCE")
-    print("="*60)
+    print("=" * 60)
 
     if "error" in results:
         print(f"\n❌ Error: {results['error']}")
         return
 
-    status_emoji = "✅" if results['slo_met'] else "❌"
+    status_emoji = "✅" if results["slo_met"] else "❌"
     print(f"\n{status_emoji} SLO Status: {'MET' if results['slo_met'] else 'VIOLATED'}")
     print(f"   Target: {results['slo_target']}%")
     print(f"   Actual: {results['success_rate']:.3f}%")
     print(f"   Margin: {results['margin']:+.3f}%")
 
-    print(f"\n📈 Request Statistics:")
+    print("\n📈 Request Statistics:")
     print(f"   Total Requests: {results['total_requests']:,}")
     print(f"   Successful: {results['success_requests']:,}")
     print(f"   Failed: {results['failed_requests']:,}")
     print(f"   Error Rate: {results['error_rate']:.3f}%")
 
-    print(f"\n💰 Error Budget:")
-    budget_emoji = "✅" if results['error_budget_remaining'] > 20 else "⚠️" if results['error_budget_remaining'] > 0 else "❌"
+    print("\n💰 Error Budget:")
+    budget_emoji = (
+        "✅"
+        if results["error_budget_remaining"] > 20
+        else "⚠️"
+        if results["error_budget_remaining"] > 0
+        else "❌"
+    )
     print(f"   {budget_emoji} Remaining: {results['error_budget_remaining']:.1f}%")
     print(f"   Consumed: {results['error_budget_consumed']:.1f}%")
     print(f"   Allowed Failures: {results['error_budget_total']:.0f}")
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
 
 
 def print_burn_rate_results(results: Dict[str, Any]):
     """Print burn rate results."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("🔥 ERROR BUDGET BURN RATE")
-    print("="*60)
+    print("=" * 60)
 
     if "error" in results:
         print(f"\n❌ Error: {results['error']}")
@@ -252,21 +273,25 @@ def print_burn_rate_results(results: Dict[str, Any]):
         "critical": "🔴",
         "warning": "🟡",
         "elevated": "🟠",
-        "normal": "🟢"
+        "normal": "🟢",
     }
 
-    print(f"\n{severity_emoji.get(results['severity'], '❓')} Severity: {results['severity'].upper()}")
+    print(
+        f"\n{severity_emoji.get(results['severity'], '❓')} Severity: {results['severity'].upper()}"
+    )
     print(f"   Burn Rate: {results['burn_rate']:.2f}x")
-    print(f"   Time to Exhaustion: {results['hours_to_exhaustion']:.1f} hours ({results['hours_to_exhaustion']/24:.1f} days)")
+    print(
+        f"   Time to Exhaustion: {results['hours_to_exhaustion']:.1f} hours ({results['hours_to_exhaustion'] / 24:.1f} days)"
+    )
 
-    print(f"\n📊 Window Statistics:")
+    print("\n📊 Window Statistics:")
     print(f"   Window: {results['window_hours']} hours")
     print(f"   Requests: {results['requests_in_window']:,}")
     print(f"   Errors: {results['errors_in_window']:,}")
     print(f"   Actual Error Rate: {results['actual_error_rate']:.3f}%")
     print(f"   Allowed Error Rate: {results['allowed_error_rate']:.3f}%")
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
 
 
 def main():
@@ -298,26 +323,34 @@ Examples:
     --errors 50 \\
     --requests 10000 \\
     --window-hours 1
-        """
+        """,
     )
 
-    parser.add_argument('mode', nargs='?', choices=['availability', 'latency', 'burn-rate'],
-                       help='Calculation mode')
-    parser.add_argument('--table', action='store_true', help='Show SLO reference table')
-    parser.add_argument('--slo', type=float, help='SLO target percentage (e.g., 99.9)')
-    parser.add_argument('--period-days', type=int, default=30, help='Period in days (default: 30)')
+    parser.add_argument(
+        "mode",
+        nargs="?",
+        choices=["availability", "latency", "burn-rate"],
+        help="Calculation mode",
+    )
+    parser.add_argument("--table", action="store_true", help="Show SLO reference table")
+    parser.add_argument("--slo", type=float, help="SLO target percentage (e.g., 99.9)")
+    parser.add_argument(
+        "--period-days", type=int, default=30, help="Period in days (default: 30)"
+    )
 
     # Availability SLO arguments
-    parser.add_argument('--total-requests', type=int, help='Total number of requests')
-    parser.add_argument('--failed-requests', type=int, help='Number of failed requests')
+    parser.add_argument("--total-requests", type=int, help="Total number of requests")
+    parser.add_argument("--failed-requests", type=int, help="Number of failed requests")
 
     # Latency SLO arguments
-    parser.add_argument('--slow-requests', type=int, help='Number of requests exceeding threshold')
+    parser.add_argument(
+        "--slow-requests", type=int, help="Number of requests exceeding threshold"
+    )
 
     # Burn rate arguments
-    parser.add_argument('--errors', type=int, help='Number of errors in window')
-    parser.add_argument('--requests', type=int, help='Number of requests in window')
-    parser.add_argument('--window-hours', type=float, help='Window size in hours')
+    parser.add_argument("--errors", type=int, help="Number of errors in window")
+    parser.add_argument("--requests", type=int, help="Number of requests in window")
+    parser.add_argument("--window-hours", type=float, help="Window size in hours")
 
     args = parser.parse_args()
 
@@ -336,28 +369,34 @@ Examples:
 
     calculator = SLOCalculator(args.slo, args.period_days)
 
-    if args.mode == 'availability':
+    if args.mode == "availability":
         if not args.total_requests or args.failed_requests is None:
             print("❌ --total-requests and --failed-requests required")
             sys.exit(1)
 
-        results = calculator.calculate_availability_slo(args.total_requests, args.failed_requests)
+        results = calculator.calculate_availability_slo(
+            args.total_requests, args.failed_requests
+        )
         print_availability_results(results)
 
-    elif args.mode == 'latency':
+    elif args.mode == "latency":
         if not args.total_requests or args.slow_requests is None:
             print("❌ --total-requests and --slow-requests required")
             sys.exit(1)
 
-        results = calculator.calculate_latency_slo(args.total_requests, args.slow_requests)
+        results = calculator.calculate_latency_slo(
+            args.total_requests, args.slow_requests
+        )
         print_availability_results(results)  # Same format
 
-    elif args.mode == 'burn-rate':
+    elif args.mode == "burn-rate":
         if not all([args.errors is not None, args.requests, args.window_hours]):
             print("❌ --errors, --requests, and --window-hours required")
             sys.exit(1)
 
-        results = calculator.calculate_burn_rate(args.errors, args.requests, args.window_hours)
+        results = calculator.calculate_burn_rate(
+            args.errors, args.requests, args.window_hours
+        )
         print_burn_rate_results(results)
 
 
