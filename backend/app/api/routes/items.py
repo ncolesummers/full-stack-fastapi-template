@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException
 from sqlmodel import col, func, select
 
 from app.api.deps import CurrentUser, SessionDep
+from app.core.metrics import record_item_created
 from app.models import Item, ItemCreate, ItemPublic, ItemsPublic, ItemUpdate, Message
 
 router = APIRouter(prefix="/items", tags=["items"])
@@ -68,6 +69,7 @@ def create_item(
     session.add(item)
     session.commit()
     session.refresh(item)
+    record_item_created()
     return item
 
 

@@ -67,6 +67,14 @@ Metrics use a **pull-based** Prometheus model. The `prometheus-fastapi-instrumen
 
 Custom business metrics (login attempts, items created, DB pool state) are defined manually using the Prometheus Python client.
 
+For clean SLO math, the backend excludes self-observability noise endpoints (`/metrics`, `f"{settings.API_V1_STR}/utils/health-check/"`) from automatic HTTP metrics.
+
+Custom labels are intentionally low cardinality. Route labels use path templates (for example, `/api/v1/items/{id}`) instead of raw IDs to avoid unbounded time series growth.
+
+The metrics set in this issue is intentionally focused:
+- **Platform reliability metrics** track service health (latency, traffic, errors, saturation).
+- **Business metrics** track domain outcomes (`login_attempts_total`, `items_created_total`) to connect technical signals to user behavior.
+
 ### Structured Logging
 
 `structlog` replaces basic Python `logging` with JSON-formatted output. The `opentelemetry-instrumentation-logging` package automatically injects `trace_id` and `span_id` into every log record, enabling log-to-trace correlation in Grafana.
@@ -91,25 +99,27 @@ Uses `parentbased_traceidratio` sampler so that if a frontend trace is sampled, 
 ## Metrics Design (Four Golden Signals)
 
 ### Latency
-- `http_request_duration_seconds` — Histogram of HTTP request durations by method, path, status_code
-- `db_query_duration_seconds` — Histogram of database query durations by operation, table
+- `http_request_duration_seconds` — Histogram of HTTP request durations by method, handler, status
 
 ### Traffic
-- `http_requests_total` — Counter of total HTTP requests by method, path, status_code
-- `http_requests_in_progress` — Gauge of currently in-flight requests
+- `http_requests_total` — Counter of total HTTP requests by method, handler, status
+- `http_requests_inprogress` — Gauge of currently in-flight requests (emitted by `prometheus-fastapi-instrumentator`)
 
 ### Errors
-- `http_requests_total{status_code>=400}` — Subset of request counter for error responses
+- `http_requests_total{status=~"4xx|5xx"}` — Subset of request counter for error responses
 - `unhandled_exceptions_total` — Counter of unhandled exceptions by type and path
 
 ### Saturation
 - `db_connection_pool_size` — Gauge of DB connection pool by state (active/idle)
-- `process_resident_memory_bytes` — Gauge of backend process memory usage
-- `process_cpu_seconds_total` — Counter of CPU time consumed
 
 ### Business Metrics
 - `login_attempts_total{result=success|failure}` — Counter of login attempts
 - `items_created_total` — Counter of items created
+
+### Future Work (Not in Issue #3 Scope)
+- `db_query_duration_seconds` — query-level DB latency histogram
+- `process_resident_memory_bytes` — process memory saturation
+- `process_cpu_seconds_total` — process CPU saturation
 
 ## Grafana Dashboard
 
@@ -155,6 +165,37 @@ All observability services start alongside the application. Access:
 1. Open Prometheus at http://localhost:9090
 2. Query `http_requests_total` to see request counts
 3. Query `histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))` for P95 latency
+
+### PromQL Cookbook (Issue #3)
+
+Use these directly in Prometheus or Grafana Explore to validate the implementation:
+
+```promql
+# Traffic: total request rate (RPS)
+sum(rate(http_requests_total[5m]))
+
+# Latency: global p95 by histogram buckets
+histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))
+
+# Errors: server-side error rate (%)
+100 *
+sum(rate(http_requests_total{status=~"5xx"}[5m]))
+/
+sum(rate(http_requests_total[5m]))
+
+# Business: successful logins / minute
+sum(increase(login_attempts_total{result="success"}[1m]))
+
+# Business: failed logins / minute
+sum(increase(login_attempts_total{result="failure"}[1m]))
+
+# Business: item creations / 5m
+sum(increase(items_created_total[5m]))
+
+# Saturation: DB pool active/idle
+db_connection_pool_size{state="active"}
+db_connection_pool_size{state="idle"}
+```
 
 ### Verifying Logs
 

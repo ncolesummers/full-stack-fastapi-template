@@ -5,11 +5,13 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.api.main import api_router
 from app.core.config import settings
+from app.core.metrics import init_metrics
 from app.core.telemetry import init_telemetry
 
 
 def custom_generate_unique_id(route: APIRoute) -> str:
-    return f"{route.tags[0]}-{route.name}"
+    route_tag = route.tags[0] if route.tags else "route"
+    return f"{route_tag}-{route.name}"
 
 
 if settings.SENTRY_DSN and settings.ENVIRONMENT != "local":
@@ -21,6 +23,7 @@ app = FastAPI(
     generate_unique_id_function=custom_generate_unique_id,
 )
 init_telemetry(app)
+init_metrics(app)
 
 # Set all CORS enabled origins
 if settings.all_cors_origins:
