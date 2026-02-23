@@ -5,6 +5,7 @@ from sqlmodel import Session
 
 from app.core.config import settings
 from tests.utils.item import create_random_item
+from tests.utils.metrics import get_metric_value
 
 
 def test_create_item(
@@ -22,6 +23,21 @@ def test_create_item(
     assert content["description"] == data["description"]
     assert "id" in content
     assert "owner_id" in content
+
+
+def test_create_item_increments_metric(
+    client: TestClient, superuser_token_headers: dict[str, str]
+) -> None:
+    before = get_metric_value(client, "items_created_total")
+    data = {"title": "Metric Item", "description": "Counter"}
+    response = client.post(
+        f"{settings.API_V1_STR}/items/",
+        headers=superuser_token_headers,
+        json=data,
+    )
+    assert response.status_code == 200
+    after = get_metric_value(client, "items_created_total")
+    assert after == before + 1
 
 
 def test_read_item(

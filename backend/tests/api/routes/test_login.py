@@ -9,6 +9,7 @@ from app.core.security import get_password_hash, verify_password
 from app.crud import create_user
 from app.models import User, UserCreate
 from app.utils import generate_password_reset_token
+from tests.utils.metrics import get_metric_value
 from tests.utils.user import user_authentication_headers
 from tests.utils.utils import random_email, random_lower_string
 
@@ -25,6 +26,22 @@ def test_get_access_token(client: TestClient) -> None:
     assert tokens["access_token"]
 
 
+def test_get_access_token_increments_success_metric(client: TestClient) -> None:
+    before = get_metric_value(
+        client, "login_attempts_total", labels={"result": "success"}
+    )
+    login_data = {
+        "username": settings.FIRST_SUPERUSER,
+        "password": settings.FIRST_SUPERUSER_PASSWORD,
+    }
+    response = client.post(f"{settings.API_V1_STR}/login/access-token", data=login_data)
+    assert response.status_code == 200
+    after = get_metric_value(
+        client, "login_attempts_total", labels={"result": "success"}
+    )
+    assert after == before + 1
+
+
 def test_get_access_token_incorrect_password(client: TestClient) -> None:
     login_data = {
         "username": settings.FIRST_SUPERUSER,
@@ -32,6 +49,22 @@ def test_get_access_token_incorrect_password(client: TestClient) -> None:
     }
     r = client.post(f"{settings.API_V1_STR}/login/access-token", data=login_data)
     assert r.status_code == 400
+
+
+def test_get_access_token_increments_failure_metric(client: TestClient) -> None:
+    before = get_metric_value(
+        client, "login_attempts_total", labels={"result": "failure"}
+    )
+    login_data = {
+        "username": settings.FIRST_SUPERUSER,
+        "password": "incorrect",
+    }
+    response = client.post(f"{settings.API_V1_STR}/login/access-token", data=login_data)
+    assert response.status_code == 400
+    after = get_metric_value(
+        client, "login_attempts_total", labels={"result": "failure"}
+    )
+    assert after == before + 1
 
 
 def test_use_access_token(
