@@ -63,7 +63,7 @@ Frontend-to-backend trace continuity is intentionally split into two layers:
 1. `frontend/src/telemetry.ts` initializes the Web SDK so browser spans exist (document load + XHR client spans).
 2. `frontend/src/telemetry-interceptor.ts` registers `OpenAPI.interceptors.request` middleware that injects W3C `traceparent` / `tracestate` headers into every generated API client request.
 
-This is an educational pattern: it teaches explicit context propagation at the client boundary while keeping generated files under `frontend/src/client/` untouched. The backend's FastAPI auto-instrumentation extracts those headers and creates child spans, producing a single trace across frontend → backend → database.
+Header injection is intentionally centralized in the interceptor (not OTEL XHR auto-propagation) so the generated-client extension point is explicit and easy to teach. This keeps generated files under `frontend/src/client/` untouched while making client-boundary propagation visible and testable. The backend's FastAPI auto-instrumentation extracts those headers and creates child spans, producing a single trace across frontend → backend → database.
 
 ### Metrics Model
 
