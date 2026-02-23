@@ -37,7 +37,8 @@ This document describes the observability architecture for the full-stack-fastap
 |--------|-------------|----------|------|
 | React frontend | OTEL Collector (:4318) | OTLP/HTTP | Browser traces (page loads, XHR requests) |
 | React frontend | FastAPI backend | HTTP | `traceparent` header on every API request |
-| FastAPI backend | OTEL Collector (:4317) | OTLP/gRPC | Server traces + structured logs |
+| FastAPI backend | OTEL Collector (:4317) | OTLP/gRPC | Server traces + OTLP-exported JSON logs |
+| FastAPI backend | Container stdout/stderr | Console / JSON | Human-readable local logs and runtime diagnostics |
 | Prometheus | FastAPI `/metrics` | HTTP pull | Four Golden Signals metrics |
 | OTEL Collector | Jaeger | OTLP/gRPC | Distributed traces |
 | OTEL Collector | Loki | Loki push API | Structured JSON logs |
@@ -77,10 +78,18 @@ The metrics set in this issue is intentionally focused:
 
 ### Structured Logging
 
-`structlog` replaces basic Python `logging` with JSON-formatted output. The `opentelemetry-instrumentation-logging` package automatically injects `trace_id` and `span_id` into every log record, enabling log-to-trace correlation in Grafana.
+`structlog` replaces basic Python `logging` with a dual-path design:
+
+1. **Stdout path** for operator-facing runtime logs
+2. **OTLP log path** for centralized query and log-to-trace correlation in Loki/Jaeger
+
+The `opentelemetry-instrumentation-logging` package and trace-context processors inject `trace_id`, `span_id`, and `trace_flags` into request-context logs so Grafana can jump directly from logs to traces.
 
 - **Local development:** Human-readable console output
 - **Non-local environments:** JSON structured logs
+- **All environments with `OTEL_ENABLED=true`:** OTLP-exported JSON logs to Collector/Loki
+
+This mirrors real SRE operations: local readability for fast debugging, structured centralized logs for incident response, and deterministic correlation to traces for root-cause analysis.
 
 ### Sentry Coexistence
 
@@ -201,8 +210,10 @@ db_connection_pool_size{state="idle"}
 
 1. Open Grafana at http://localhost:3000
 2. Go to Explore, select Loki data source
-3. Query `{service_name="fastapi-backend"}` to see structured logs
-4. Click any `trace_id` value to jump to the corresponding trace in Jaeger
+3. Generate backend traffic, for example: `curl -s http://localhost:8000/api/v1/utils/health-check/ > /dev/null`
+4. Query `{service_name="fastapi-backend"}` to see structured logs
+5. Confirm log entries include `trace_id` and `span_id`
+6. Click any `trace_id` value to jump to the corresponding trace in Jaeger
 
 ## Configuration Reference
 
@@ -214,6 +225,7 @@ db_connection_pool_size{state="idle"}
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector:4317` | OTEL Collector gRPC endpoint |
 | `OTEL_SAMPLING_RATE` | `1.0` | Trace sampling ratio (0.0 to 1.0) |
 | `OTEL_ENABLED` | `true` | Enable/disable OTEL instrumentation |
+| `LOG_LEVEL` | unset | Optional log-level override (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`) |
 | `VITE_OTEL_COLLECTOR_URL` | `http://localhost:4318` | OTEL Collector HTTP endpoint (frontend) |
 | `VITE_OTEL_SERVICE_NAME` | `react-frontend` | Frontend service name in traces |
 
