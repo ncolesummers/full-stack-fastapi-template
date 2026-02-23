@@ -23,7 +23,9 @@ dependencies = [
     "opentelemetry-instrumentation-fastapi>=0.48b0",
     "opentelemetry-instrumentation-sqlalchemy>=0.48b0",
     "opentelemetry-instrumentation-httpx>=0.48b0",
+    "opentelemetry-instrumentation-logging>=0.48b0",
     "prometheus-fastapi-instrumentator>=7.0.0",
+    "structlog>=24.0.0",
     "pyjwt<3.0.0,>=2.8.0",
     "pwdlib[argon2,bcrypt]>=0.3.0",
 ]

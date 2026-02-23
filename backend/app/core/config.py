@@ -10,6 +10,7 @@ from pydantic import (
     HttpUrl,
     PostgresDsn,
     computed_field,
+    field_validator,
     model_validator,
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -55,6 +56,7 @@ class Settings(BaseSettings):
     OTEL_SERVICE_NAME: str = "fastapi-backend"
     OTEL_EXPORTER_OTLP_ENDPOINT: str = "http://otel-collector:4317"
     OTEL_SAMPLING_RATE: float = Field(default=1.0, ge=0.0, le=1.0)
+    LOG_LEVEL: str | None = None
     POSTGRES_SERVER: str
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str
@@ -87,6 +89,35 @@ class Settings(BaseSettings):
         if not self.EMAILS_FROM_NAME:
             self.EMAILS_FROM_NAME = self.PROJECT_NAME
         return self
+
+    @field_validator("LOG_LEVEL")
+    @classmethod
+    def _validate_log_level(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+
+        normalized = value.strip().upper()
+        if normalized == "":
+            return None
+
+        allowed_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+        if normalized not in allowed_levels:
+            msg = "LOG_LEVEL must be one of: DEBUG, INFO, WARNING, ERROR, CRITICAL"
+            raise ValueError(msg)
+
+        return normalized
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def effective_log_level(self) -> str:
+        if self.LOG_LEVEL:
+            return self.LOG_LEVEL
+
+        return {
+            "local": "DEBUG",
+            "staging": "INFO",
+            "production": "WARNING",
+        }[self.ENVIRONMENT]
 
     EMAIL_RESET_TOKEN_EXPIRE_HOURS: int = 48
 
