@@ -13,6 +13,8 @@ RUN bun install
 
 COPY ./frontend /app/frontend
 ARG VITE_API_URL
+ARG VITE_OTEL_COLLECTOR_URL
+ARG VITE_OTEL_SERVICE_NAME
 
 RUN bun run build
 
