@@ -8,6 +8,8 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 
+from app.core.config import settings
+
 UNHANDLED_EXCEPTIONS_TOTAL = Counter(
     "unhandled_exceptions_total",
     "Count of unhandled exceptions by exception type and route path.",
@@ -105,8 +107,9 @@ def init_metrics(app: FastAPI) -> None:
     if _metrics_initialized:
         return
 
+    health_check_path = f"{settings.API_V1_STR}/utils/health-check/"
     instrumentator = Instrumentator(
-        excluded_handlers=["/metrics", "/api/v1/utils/health-check/"],
+        excluded_handlers=["/metrics", health_check_path],
         should_instrument_requests_inprogress=True,
     )
     instrumentator.instrument(app).expose(
@@ -123,5 +126,9 @@ def init_metrics(app: FastAPI) -> None:
         except Exception as exc:
             record_unhandled_exception(type(exc).__name__, _resolve_path_label(request))
             raise
+
+    # Emit zero-value series for stable dashboards/alerts before first login event.
+    LOGIN_ATTEMPTS_TOTAL.labels(result="success")
+    LOGIN_ATTEMPTS_TOTAL.labels(result="failure")
 
     _metrics_initialized = True

@@ -67,7 +67,7 @@ Metrics use a **pull-based** Prometheus model. The `prometheus-fastapi-instrumen
 
 Custom business metrics (login attempts, items created, DB pool state) are defined manually using the Prometheus Python client.
 
-For clean SLO math, the backend excludes self-observability noise endpoints (`/metrics`, `/api/v1/utils/health-check/`) from automatic HTTP metrics.
+For clean SLO math, the backend excludes self-observability noise endpoints (`/metrics`, `f"{settings.API_V1_STR}/utils/health-check/"`) from automatic HTTP metrics.
 
 Custom labels are intentionally low cardinality. Route labels use path templates (for example, `/api/v1/items/{id}`) instead of raw IDs to avoid unbounded time series growth.
 
@@ -99,14 +99,14 @@ Uses `parentbased_traceidratio` sampler so that if a frontend trace is sampled, 
 ## Metrics Design (Four Golden Signals)
 
 ### Latency
-- `http_request_duration_seconds` — Histogram of HTTP request durations by method, path, status_code
+- `http_request_duration_seconds` — Histogram of HTTP request durations by method, handler, status
 
 ### Traffic
-- `http_requests_total` — Counter of total HTTP requests by method, path, status_code
+- `http_requests_total` — Counter of total HTTP requests by method, handler, status
 - `http_requests_inprogress` — Gauge of currently in-flight requests (emitted by `prometheus-fastapi-instrumentator`)
 
 ### Errors
-- `http_requests_total{status_code>=400}` — Subset of request counter for error responses
+- `http_requests_total{status=~"4xx|5xx"}` — Subset of request counter for error responses
 - `unhandled_exceptions_total` — Counter of unhandled exceptions by type and path
 
 ### Saturation
@@ -179,7 +179,7 @@ histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by 
 
 # Errors: server-side error rate (%)
 100 *
-sum(rate(http_requests_total{status=~"5.."}[5m]))
+sum(rate(http_requests_total{status=~"5xx"}[5m]))
 /
 sum(rate(http_requests_total[5m]))
 

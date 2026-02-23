@@ -52,7 +52,10 @@ def test_init_metrics_initializes_once(monkeypatch: pytest.MonkeyPatch) -> None:
     metrics.init_metrics(app)
 
     instrumentator_cls.assert_called_once_with(
-        excluded_handlers=["/metrics", "/api/v1/utils/health-check/"],
+        excluded_handlers=[
+            "/metrics",
+            f"{metrics.settings.API_V1_STR}/utils/health-check/",
+        ],
         should_instrument_requests_inprogress=True,
     )
     instrumentator_instance.instrument.assert_called_once_with(app)
@@ -73,6 +76,15 @@ def test_db_pool_metrics_are_non_negative(client: TestClient) -> None:
 
     assert active >= 0
     assert idle >= 0
+
+
+def test_metrics_endpoint_preinitializes_login_result_series(
+    client: TestClient,
+) -> None:
+    success = get_metric_value(client, "login_attempts_total", {"result": "success"})
+    failure = get_metric_value(client, "login_attempts_total", {"result": "failure"})
+    assert success >= 0.0
+    assert failure >= 0.0
 
 
 def test_resolve_db_engine_uses_default_engine(monkeypatch: pytest.MonkeyPatch) -> None:
