@@ -11,6 +11,11 @@ from app.core.config import Settings
 
 @pytest.fixture(scope="session", autouse=True)
 def db() -> Generator[None, None, None]:
+    """
+    Override the global autouse DB fixture from tests/conftest.py for this module.
+
+    These tests are pure unit tests and intentionally skip database setup.
+    """
     yield
 
 

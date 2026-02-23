@@ -46,9 +46,13 @@ def init_telemetry(app: FastAPI) -> None:
     sampler = ParentBased(root=TraceIdRatioBased(settings.OTEL_SAMPLING_RATE))
     tracer_provider = TracerProvider(resource=resource, sampler=sampler)
 
+    otel_endpoint = settings.OTEL_EXPORTER_OTLP_ENDPOINT
+    # gRPC exporter uses insecure transport only for explicit http:// endpoints.
+    # https:// and bare host:port endpoints should use secure transport.
+    insecure = otel_endpoint.startswith("http://")
     span_exporter = OTLPSpanExporter(
-        endpoint=settings.OTEL_EXPORTER_OTLP_ENDPOINT,
-        insecure=settings.OTEL_EXPORTER_OTLP_ENDPOINT.startswith("http://"),
+        endpoint=otel_endpoint,
+        insecure=insecure,
     )
     tracer_provider.add_span_processor(BatchSpanProcessor(span_exporter))
     trace.set_tracer_provider(tracer_provider)
