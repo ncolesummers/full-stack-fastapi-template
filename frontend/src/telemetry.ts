@@ -20,9 +20,6 @@ const removeTrailingSlash = (value: string): string => value.replace(/\/+$/, "")
 const getTraceExporterUrl = (collectorUrl: string): string =>
   `${removeTrailingSlash(collectorUrl)}/v1/traces`
 
-const escapeRegex = (value: string): string =>
-  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-
 const toError = (value: unknown): Error => {
   if (value instanceof Error) {
     return value
@@ -106,7 +103,6 @@ export const initTelemetry = (): void => {
     const collectorUrl = collectorUrlEnv || DEFAULT_OTEL_COLLECTOR_URL
     const serviceName =
       import.meta.env.VITE_OTEL_SERVICE_NAME || DEFAULT_OTEL_SERVICE_NAME
-    const apiBaseUrl = import.meta.env.VITE_API_URL?.trim()
     const traceExporterUrl = getTraceExporterUrl(collectorUrl)
 
     const traceExporter = new OTLPTraceExporter({
@@ -126,15 +122,6 @@ export const initTelemetry = (): void => {
 
     const xhrConfig: XMLHttpRequestInstrumentationConfig = {
       ignoreUrls: [traceExporterUrl],
-    }
-    if (apiBaseUrl) {
-      xhrConfig.propagateTraceHeaderCorsUrls = [
-        new RegExp(`^${escapeRegex(apiBaseUrl)}`),
-      ]
-    } else {
-      console.warn(
-        "[telemetry] VITE_API_URL is not set; backend trace header propagation is disabled",
-      )
     }
 
     const xhrInstrumentation = new XMLHttpRequestInstrumentation(xhrConfig)

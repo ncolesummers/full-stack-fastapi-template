@@ -11,7 +11,7 @@ This document describes the observability architecture for the full-stack-fastap
 ```
   Browser (React + OTEL Web SDK)
          │
-         │  W3C traceparent headers via OTEL XHR instrumentation
+         │  W3C traceparent headers via OpenAPI interceptor + OTEL context
          │
          ▼
       Traefik
@@ -58,9 +58,12 @@ This document describes the observability architecture for the full-stack-fastap
 
 ### Trace Context Propagation
 
-Frontend-to-backend trace continuity is achieved through OpenTelemetry browser instrumentation in `frontend/src/telemetry.ts`. `XMLHttpRequestInstrumentation` automatically creates client spans for Axios requests and injects W3C `traceparent` / `tracestate` headers.
+Frontend-to-backend trace continuity is intentionally split into two layers:
 
-`WebTracerProvider` in the browser registers the default W3C TraceContext propagator, so requests stay correlated without patching generated client files under `frontend/src/client/`. The backend's FastAPI auto-instrumentation extracts those headers and creates child spans, resulting in a single trace across frontend → backend → database.
+1. `frontend/src/telemetry.ts` initializes the Web SDK so browser spans exist (document load + XHR client spans).
+2. `frontend/src/telemetry-interceptor.ts` registers `OpenAPI.interceptors.request` middleware that injects W3C `traceparent` / `tracestate` headers into every generated API client request.
+
+Header injection is intentionally centralized in the interceptor (not OTEL XHR auto-propagation) so the generated-client extension point is explicit and easy to teach. This keeps generated files under `frontend/src/client/` untouched while making client-boundary propagation visible and testable. The backend's FastAPI auto-instrumentation extracts those headers and creates child spans, producing a single trace across frontend → backend → database.
 
 ### Metrics Model
 
@@ -278,5 +281,6 @@ def my_function():
 
 ### Frontend traces not linking to backend
 - Verify `traceparent` header is present in browser DevTools Network tab
+- Confirm `registerTraceContextInterceptor()` is called in `frontend/src/main.tsx`
 - Check CORS allows the `traceparent` header (should be covered by `allow_headers=["*"]`)
 - Ensure both frontend and backend OTEL are sending to the same Collector instance
