@@ -3,6 +3,8 @@ global:
   evaluation_interval: 10s
 
 scrape_configs:
+  # Scrapes FastAPI backend metrics once prometheus-fastapi-instrumentator
+  # (or equivalent) is added and /metrics is exposed on the backend.
   - job_name: backend
     static_configs:
       - targets: ["backend:8000"]
