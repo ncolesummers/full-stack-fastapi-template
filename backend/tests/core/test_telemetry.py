@@ -46,7 +46,9 @@ def test_init_telemetry_noop_when_disabled(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr(
         telemetry.SQLAlchemyInstrumentor, "instrument", sqlalchemy_instrument
     )
-    monkeypatch.setattr(telemetry.HTTPXClientInstrumentor, "instrument", httpx_instrument)
+    monkeypatch.setattr(
+        telemetry.HTTPXClientInstrumentor, "instrument", httpx_instrument
+    )
 
     telemetry.init_telemetry(app)
 
@@ -88,7 +90,9 @@ def test_init_telemetry_initializes_once(monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.setattr(
         telemetry.SQLAlchemyInstrumentor, "instrument", sqlalchemy_instrument
     )
-    monkeypatch.setattr(telemetry.HTTPXClientInstrumentor, "instrument", httpx_instrument)
+    monkeypatch.setattr(
+        telemetry.HTTPXClientInstrumentor, "instrument", httpx_instrument
+    )
 
     telemetry.init_telemetry(app)
     telemetry.init_telemetry(app)
@@ -100,7 +104,9 @@ def test_init_telemetry_initializes_once(monkeypatch: pytest.MonkeyPatch) -> Non
         insecure=True,
     )
     span_processor.assert_called_once_with(span_exporter.return_value)
-    mock_provider.add_span_processor.assert_called_once_with(span_processor.return_value)
+    mock_provider.add_span_processor.assert_called_once_with(
+        span_processor.return_value
+    )
     set_tracer_provider.assert_called_once_with(mock_provider)
     fastapi_instrument.assert_called_once_with(app)
     assert sqlalchemy_instrument.call_count == 1

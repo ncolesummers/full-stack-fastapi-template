@@ -7,9 +7,7 @@ Supports: error detection, frequency analysis, pattern matching.
 import argparse
 import sys
 import re
-import json
-from collections import Counter, defaultdict
-from datetime import datetime
+from collections import Counter
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 
@@ -22,23 +20,23 @@ except ImportError:
 class LogAnalyzer:
     # Common log level patterns
     LOG_LEVELS = {
-        'ERROR': r'\b(ERROR|Error|error)\b',
-        'WARN': r'\b(WARN|Warning|warn|warning)\b',
-        'INFO': r'\b(INFO|Info|info)\b',
-        'DEBUG': r'\b(DEBUG|Debug|debug)\b',
-        'FATAL': r'\b(FATAL|Fatal|fatal|CRITICAL|Critical)\b'
+        "ERROR": r"\b(ERROR|Error|error)\b",
+        "WARN": r"\b(WARN|Warning|warn|warning)\b",
+        "INFO": r"\b(INFO|Info|info)\b",
+        "DEBUG": r"\b(DEBUG|Debug|debug)\b",
+        "FATAL": r"\b(FATAL|Fatal|fatal|CRITICAL|Critical)\b",
     }
 
     # Common error patterns
     ERROR_PATTERNS = {
-        'exception': r'Exception|exception|EXCEPTION',
-        'stack_trace': r'\s+at\s+.*\(.*:\d+\)',
-        'http_error': r'\b[45]\d{2}\b',  # 4xx and 5xx HTTP codes
-        'timeout': r'timeout|timed out|TIMEOUT',
-        'connection_refused': r'connection refused|ECONNREFUSED',
-        'out_of_memory': r'OutOfMemoryError|OOM|out of memory',
-        'null_pointer': r'NullPointerException|null pointer|NPE',
-        'database_error': r'SQLException|database error|DB error'
+        "exception": r"Exception|exception|EXCEPTION",
+        "stack_trace": r"\s+at\s+.*\(.*:\d+\)",
+        "http_error": r"\b[45]\d{2}\b",  # 4xx and 5xx HTTP codes
+        "timeout": r"timeout|timed out|TIMEOUT",
+        "connection_refused": r"connection refused|ECONNREFUSED",
+        "out_of_memory": r"OutOfMemoryError|OOM|out of memory",
+        "null_pointer": r"NullPointerException|null pointer|NPE",
+        "database_error": r"SQLException|database error|DB error",
     }
 
     def __init__(self, log_file: str):
@@ -51,7 +49,7 @@ class LogAnalyzer:
     def parse_file(self) -> bool:
         """Parse log file."""
         try:
-            with open(self.log_file, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(self.log_file, "r", encoding="utf-8", errors="ignore") as f:
                 self.lines = f.readlines()
             return True
         except Exception as e:
@@ -78,9 +76,9 @@ class LogAnalyzer:
         if not timestamp_pattern:
             # Common timestamp patterns
             patterns = [
-                r'\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}',  # ISO format
-                r'\d{2}/\w{3}/\d{4}:\d{2}:\d{2}:\d{2}',  # Apache format
-                r'\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}',  # Syslog format
+                r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}",  # ISO format
+                r"\d{2}/\w{3}/\d{4}:\d{2}:\d{2}:\d{2}",  # Apache format
+                r"\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}",  # Syslog format
             ]
         else:
             patterns = [timestamp_pattern]
@@ -98,8 +96,10 @@ class LogAnalyzer:
 
         for i, line in enumerate(self.lines):
             # Check if line contains error keywords
-            is_error = any(re.search(pattern, line, re.IGNORECASE)
-                          for pattern in [self.LOG_LEVELS['ERROR'], self.LOG_LEVELS['FATAL']])
+            is_error = any(
+                re.search(pattern, line, re.IGNORECASE)
+                for pattern in [self.LOG_LEVELS["ERROR"], self.LOG_LEVELS["FATAL"]]
+            )
 
             if is_error:
                 # Get context lines
@@ -107,11 +107,13 @@ class LogAnalyzer:
                 end = min(len(self.lines), i + context + 1)
                 context_lines = self.lines[start:end]
 
-                errors.append({
-                    'line_number': i + 1,
-                    'line': line.strip(),
-                    'context': ''.join(context_lines)
-                })
+                errors.append(
+                    {
+                        "line_number": i + 1,
+                        "line": line.strip(),
+                        "context": "".join(context_lines),
+                    }
+                )
 
         return errors
 
@@ -131,7 +133,7 @@ class LogAnalyzer:
         return {
             "total_lines": total_lines,
             "timestamps_found": len(self.timestamps),
-            "avg_per_window": avg_per_window
+            "avg_per_window": avg_per_window,
         }
 
     def extract_unique_messages(self, pattern: str) -> List[str]:
@@ -157,78 +159,85 @@ class LogAnalyzer:
 
         for i, line in enumerate(self.lines):
             # Start of stack trace
-            if re.search(r'Exception|Error.*:', line):
+            if re.search(r"Exception|Error.*:", line):
                 if current_trace:
-                    stack_traces.append({
-                        'line_start': i - len(current_trace) + 1,
-                        'trace': '\n'.join(current_trace)
-                    })
+                    stack_traces.append(
+                        {
+                            "line_start": i - len(current_trace) + 1,
+                            "trace": "\n".join(current_trace),
+                        }
+                    )
                 current_trace = [line.strip()]
                 in_trace = True
             # Stack trace continuation
-            elif in_trace and re.search(r'^\s+at\s+', line):
+            elif in_trace and re.search(r"^\s+at\s+", line):
                 current_trace.append(line.strip())
             # End of stack trace
             elif in_trace:
                 if current_trace:
-                    stack_traces.append({
-                        'line_start': i - len(current_trace) + 1,
-                        'trace': '\n'.join(current_trace)
-                    })
+                    stack_traces.append(
+                        {
+                            "line_start": i - len(current_trace) + 1,
+                            "trace": "\n".join(current_trace),
+                        }
+                    )
                 current_trace = []
                 in_trace = False
 
         # Add last trace if exists
         if current_trace:
-            stack_traces.append({
-                'line_start': len(self.lines) - len(current_trace) + 1,
-                'trace': '\n'.join(current_trace)
-            })
+            stack_traces.append(
+                {
+                    "line_start": len(self.lines) - len(current_trace) + 1,
+                    "trace": "\n".join(current_trace),
+                }
+            )
 
         return stack_traces
 
 
-def print_analysis_results(analyzer: LogAnalyzer, show_errors: bool = False,
-                           show_traces: bool = False):
+def print_analysis_results(
+    analyzer: LogAnalyzer, show_errors: bool = False, show_traces: bool = False
+):
     """Print analysis results."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("📝 LOG ANALYSIS RESULTS")
-    print("="*60)
+    print("=" * 60)
 
     print(f"\n📁 File: {analyzer.log_file}")
     print(f"📊 Total Lines: {len(analyzer.lines):,}")
 
     # Log levels
     if analyzer.log_levels:
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("📊 LOG LEVEL DISTRIBUTION:")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         level_emoji = {
-            'FATAL': '🔴',
-            'ERROR': '❌',
-            'WARN': '⚠️',
-            'INFO': 'ℹ️',
-            'DEBUG': '🐛'
+            "FATAL": "🔴",
+            "ERROR": "❌",
+            "WARN": "⚠️",
+            "INFO": "ℹ️",
+            "DEBUG": "🐛",
         }
 
         for level, count in analyzer.log_levels.most_common():
-            emoji = level_emoji.get(level, '•')
+            emoji = level_emoji.get(level, "•")
             percentage = (count / len(analyzer.lines)) * 100
             print(f"{emoji} {level:10s}: {count:6,} ({percentage:5.1f}%)")
 
     # Error patterns
     if analyzer.error_patterns:
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("🔍 ERROR PATTERNS DETECTED:")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         for pattern, count in analyzer.error_patterns.most_common(10):
             print(f"• {pattern:20s}: {count:,} occurrences")
 
     # Timestamps
     if analyzer.timestamps:
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"⏰ Timestamps Found: {len(analyzer.timestamps):,}")
         print(f"   First: {analyzer.timestamps[0]}")
         print(f"   Last:  {analyzer.timestamps[-1]}")
@@ -237,9 +246,9 @@ def print_analysis_results(analyzer: LogAnalyzer, show_errors: bool = False,
     if show_errors:
         errors = analyzer.find_error_lines(context=1)
         if errors:
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print(f"❌ ERROR LINES (showing first 10 of {len(errors)}):")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
 
             for error in errors[:10]:
                 print(f"\nLine {error['line_number']}:")
@@ -249,17 +258,17 @@ def print_analysis_results(analyzer: LogAnalyzer, show_errors: bool = False,
     if show_traces:
         traces = analyzer.find_stack_traces()
         if traces:
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print(f"📚 STACK TRACES FOUND: {len(traces)}")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
 
             for i, trace in enumerate(traces[:5], 1):
                 print(f"\nTrace {i} (starting at line {trace['line_start']}):")
-                print(trace['trace'])
+                print(trace["trace"])
                 if i < len(traces):
-                    print("\n" + "-"*60)
+                    print("\n" + "-" * 60)
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
 
 
 def main():
@@ -287,13 +296,15 @@ Features:
   • Error line identification with context
   • Stack trace extraction
   • Frequency analysis
-        """
+        """,
     )
 
-    parser.add_argument('log_file', help='Path to log file')
-    parser.add_argument('--show-errors', action='store_true', help='Show error lines')
-    parser.add_argument('--show-traces', action='store_true', help='Show stack traces')
-    parser.add_argument('--timestamp-pattern', help='Custom regex for timestamp extraction')
+    parser.add_argument("log_file", help="Path to log file")
+    parser.add_argument("--show-errors", action="store_true", help="Show error lines")
+    parser.add_argument("--show-traces", action="store_true", help="Show stack traces")
+    parser.add_argument(
+        "--timestamp-pattern", help="Custom regex for timestamp extraction"
+    )
 
     args = parser.parse_args()
 
