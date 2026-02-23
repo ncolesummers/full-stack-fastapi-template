@@ -102,6 +102,8 @@ services:
       dockerfile: frontend/Dockerfile
       args:
         - VITE_API_URL=http://localhost:8000
+        - VITE_OTEL_COLLECTOR_URL=${VITE_OTEL_COLLECTOR_URL:-http://localhost:4318}
+        - VITE_OTEL_SERVICE_NAME=${VITE_OTEL_SERVICE_NAME:-react-frontend}
         - NODE_ENV=development
 
   playwright:
