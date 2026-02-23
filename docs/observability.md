@@ -11,7 +11,7 @@ This document describes the observability architecture for the full-stack-fastap
 ```
   Browser (React + OTEL Web SDK)
          │
-         │  W3C traceparent headers via Axios interceptor
+         │  W3C traceparent headers via OTEL XHR instrumentation
          │
          ▼
       Traefik
@@ -58,9 +58,9 @@ This document describes the observability architecture for the full-stack-fastap
 
 ### Trace Context Propagation
 
-Frontend-to-backend trace continuity is achieved through W3C `traceparent` headers injected into every Axios API request. This uses the existing `OpenAPI.interceptors.request.use()` mechanism from the auto-generated API client, meaning **zero modifications to generated code** under `frontend/src/client/`.
+Frontend-to-backend trace continuity is achieved through OpenTelemetry browser instrumentation in `frontend/src/telemetry.ts`. `XMLHttpRequestInstrumentation` automatically creates client spans for Axios requests and injects W3C `traceparent` / `tracestate` headers.
 
-The interceptor reads the active OpenTelemetry span context and injects `traceparent` and `tracestate` headers. The backend's FastAPI auto-instrumentation extracts these headers and creates child spans, resulting in a single trace that spans the full request lifecycle.
+`WebTracerProvider` in the browser registers the default W3C TraceContext propagator, so requests stay correlated without patching generated client files under `frontend/src/client/`. The backend's FastAPI auto-instrumentation extracts those headers and creates child spans, resulting in a single trace across frontend → backend → database.
 
 ### Metrics Model
 
