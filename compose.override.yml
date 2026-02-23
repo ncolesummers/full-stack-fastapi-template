@@ -129,7 +129,77 @@ services:
     ports:
       - 9323:9323
 
+  # ── Observability stack ──────────────────────────────────────────────────
+  # UIs: Grafana :3000  |  Jaeger :16686  |  Prometheus :9090
+  # APIs only (no web UI): Loki :3100/ready (health)  |  OTel Collector :4317/:4318/:13133
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.146.1
+    restart: "no"
+    ports:
+      - "4317:4317"  # OTLP gRPC (backend → collector)
+      - "4318:4318"  # OTLP HTTP (browser → collector)
+      - "8889:8889"  # Prometheus scrape target
+      - "13133:13133"  # OTel Collector health check (curl localhost:13133)
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml
+    depends_on:
+      - jaeger
+      - loki
+
+  jaeger:
+    image: jaegertracing/jaeger:2.15.1
+    restart: "no"
+    ports:
+      - "16686:16686"  # Jaeger UI
+    # Port 4317 (OTLP gRPC) is intentionally not host-mapped — the OTel
+    # Collector reaches it via the internal Docker network (jaeger:4317).
+
+  prometheus:
+    image: prom/prometheus:v3.9.1
+    restart: "no"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    depends_on:
+      - otel-collector
+
+  loki:
+    image: grafana/loki:3.6.6
+    restart: "no"
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml
+      - loki-data:/loki
+
+  grafana:
+    image: grafana/grafana:12.3.3
+    restart: "no"
+    ports:
+      - "3000:3000"
+    environment:
+      # Override GRAFANA_ADMIN_USER / GRAFANA_ADMIN_PASSWORD in .env for
+      # any non-local or shared environment. Defaults to admin/admin for dev.
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+      - jaeger
+      - loki
+
 networks:
   traefik-public:
     # For local dev, don't expect an external Traefik network
     external: false
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  loki-data:
