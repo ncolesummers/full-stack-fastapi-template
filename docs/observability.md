@@ -226,7 +226,7 @@ db_connection_pool_size{state="idle"}
 | `OTEL_SAMPLING_RATE` | `1.0` | Trace sampling ratio (0.0 to 1.0) |
 | `OTEL_ENABLED` | `true` | Enable/disable OTEL instrumentation |
 | `LOG_LEVEL` | unset | Optional log-level override (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`) |
-| `VITE_OTEL_COLLECTOR_URL` | `http://localhost:4318` | OTEL Collector HTTP endpoint (frontend) |
+| `VITE_OTEL_COLLECTOR_URL` | `http://localhost:4318` (local) | OTEL Collector HTTP endpoint for browser trace export. Set to empty to disable frontend export (recommended when no public collector endpoint is available). |
 | `VITE_OTEL_SERVICE_NAME` | `react-frontend` | Frontend service name in traces |
 
 ### Adding Custom Spans (Backend)

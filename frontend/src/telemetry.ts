@@ -1,7 +1,10 @@
 import { SpanStatusCode, trace } from "@opentelemetry/api"
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http"
 import { DocumentLoadInstrumentation } from "@opentelemetry/instrumentation-document-load"
-import { XMLHttpRequestInstrumentation } from "@opentelemetry/instrumentation-xml-http-request"
+import {
+  XMLHttpRequestInstrumentation,
+  type XMLHttpRequestInstrumentationConfig,
+} from "@opentelemetry/instrumentation-xml-http-request"
 import { resourceFromAttributes } from "@opentelemetry/resources"
 import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base"
 import { WebTracerProvider } from "@opentelemetry/sdk-trace-web"
@@ -91,11 +94,19 @@ export const initTelemetry = (): void => {
   }
 
   try {
-    const collectorUrl =
-      import.meta.env.VITE_OTEL_COLLECTOR_URL || DEFAULT_OTEL_COLLECTOR_URL
+    const collectorUrlEnv = import.meta.env.VITE_OTEL_COLLECTOR_URL?.trim()
+    if (collectorUrlEnv === "") {
+      telemetryInitialized = true
+      console.info(
+        "[telemetry] Frontend tracing is disabled because VITE_OTEL_COLLECTOR_URL is empty",
+      )
+      return
+    }
+
+    const collectorUrl = collectorUrlEnv || DEFAULT_OTEL_COLLECTOR_URL
     const serviceName =
       import.meta.env.VITE_OTEL_SERVICE_NAME || DEFAULT_OTEL_SERVICE_NAME
-    const apiBaseUrl = import.meta.env.VITE_API_URL
+    const apiBaseUrl = import.meta.env.VITE_API_URL?.trim()
     const traceExporterUrl = getTraceExporterUrl(collectorUrl)
 
     const traceExporter = new OTLPTraceExporter({
@@ -113,10 +124,20 @@ export const initTelemetry = (): void => {
     // Defaults include W3C TraceContext + StackContextManager, so no zone.js is required.
     provider.register()
 
-    const xhrInstrumentation = new XMLHttpRequestInstrumentation({
+    const xhrConfig: XMLHttpRequestInstrumentationConfig = {
       ignoreUrls: [traceExporterUrl],
-      propagateTraceHeaderCorsUrls: [new RegExp(`^${escapeRegex(apiBaseUrl)}`)],
-    })
+    }
+    if (apiBaseUrl) {
+      xhrConfig.propagateTraceHeaderCorsUrls = [
+        new RegExp(`^${escapeRegex(apiBaseUrl)}`),
+      ]
+    } else {
+      console.warn(
+        "[telemetry] VITE_API_URL is not set; backend trace header propagation is disabled",
+      )
+    }
+
+    const xhrInstrumentation = new XMLHttpRequestInstrumentation(xhrConfig)
     xhrInstrumentation.setTracerProvider(provider)
     xhrInstrumentation.enable()
 

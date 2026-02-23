@@ -151,7 +151,7 @@ services:
       dockerfile: frontend/Dockerfile
       args:
         - VITE_API_URL=https://api.${DOMAIN?Variable not set}
-        - VITE_OTEL_COLLECTOR_URL=${VITE_OTEL_COLLECTOR_URL}
+        - VITE_OTEL_COLLECTOR_URL=${VITE_OTEL_COLLECTOR_URL:-}
         - VITE_OTEL_SERVICE_NAME=${VITE_OTEL_SERVICE_NAME}
         - NODE_ENV=production
     labels:
